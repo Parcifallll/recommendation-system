@@ -1,0 +1,98 @@
+### Health Check
+GET http://localhost:8001/health
+
+###
+
+### Root endpoint
+GET http://localhost:8001/
+
+###
+
+### Get recommendations for user123 (who likes AI and nature)
+POST http://localhost:8001/recommendations/
+Content-Type: application/json
+
+{
+  "userId": "user123",
+  "limit": 5,
+  "excludeAuthorPosts": true
+}
+
+###
+
+### Get recommendations with more results
+POST http://localhost:8001/recommendations/
+Content-Type: application/json
+
+{
+  "userId": "user123",
+  "limit": 10,
+  "excludeAuthorPosts": false
+}
+
+###
+
+### Get recommendations for a new user (should return popular posts)
+POST http://localhost:8001/recommendations/
+Content-Type: application/json
+
+{
+  "userId": "new_user_456",
+  "limit": 5,
+  "excludeAuthorPosts": true
+}
+
+###
+
+### Create a new post
+POST http://localhost:8001/recommendations/posts
+Content-Type: application/json
+
+{
+  "id": 100,
+  "authorId": "test_user",
+  "text": "Amazing breakthrough in quantum computing! The future is here.",
+  "createdAt": "2024-01-15T10:00:00Z"
+}
+
+###
+
+### Create a LIKE reaction
+POST http://localhost:8001/recommendations/reactions
+Content-Type: application/json
+
+{
+  "id": 200,
+  "targetType": "POST",
+  "targetId": 1,
+  "authorId": "user123",
+  "type": "LIKE",
+  "createdAt": "2024-01-15T10:00:00Z"
+}
+
+###
+
+### Create a DISLIKE reaction
+POST http://localhost:8001/recommendations/reactions
+Content-Type: application/json
+
+{
+  "id": 201,
+  "targetType": "POST",
+  "targetId": 3,
+  "authorId": "user123",
+  "type": "DISLIKE",
+  "createdAt": "2024-01-15T10:00:00Z"
+}
+
+###
+
+### Refresh recommendations cache for user123
+POST http://localhost:8001/recommendations/refresh/user123
+
+###
+
+### Recommendations health check
+GET http://localhost:8001/recommendations/health
+
+###
