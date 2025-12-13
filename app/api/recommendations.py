@@ -13,8 +13,8 @@ router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
 @router.post("/", response_model=RecommendationResponse)
 async def get_recommendations(
-    request: RecommendationRequest,
-    session: AsyncSession = Depends(get_session)
+        request: RecommendationRequest,
+        session: AsyncSession = Depends(get_session)
 ):
     """
     Get personalized post recommendations for a user
@@ -40,8 +40,8 @@ async def get_recommendations(
 
 @router.post("/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 async def create_post(
-    post: PostCreate,
-    session: AsyncSession = Depends(get_session)
+        post: PostCreate,
+        session: AsyncSession = Depends(get_session)
 ):
     """
     Create a new post with text embedding
@@ -67,8 +67,8 @@ async def create_post(
 
 @router.post("/reactions", status_code=status.HTTP_201_CREATED)
 async def create_reaction(
-    reaction: ReactionCreate,
-    session: AsyncSession = Depends(get_session)
+        reaction: ReactionCreate,
+        session: AsyncSession = Depends(get_session)
 ):
     """
     Create a new reaction
@@ -103,8 +103,8 @@ async def health_check():
 
 @router.post("/refresh/{user_id}")
 async def refresh_user_recommendations(
-    user_id: str,
-    session: AsyncSession = Depends(get_session)
+        user_id: str,
+        session: AsyncSession = Depends(get_session)
 ):
     """
     Force refresh recommendations for a user
@@ -119,11 +119,11 @@ async def refresh_user_recommendations(
     try:
         # Invalidate cache
         recommendation_service._invalidate_user_cache(user_id)
-        
+
         # Recompute preferences
         from app.ml.recommender import recommender
         await recommender.get_user_preference_embedding(user_id, session)
-        
+
         logger.info(f"Refreshed recommendations for user {user_id}")
         return {"message": f"Recommendations refreshed for user {user_id}"}
     except Exception as e:
