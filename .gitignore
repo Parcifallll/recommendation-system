@@ -22,52 +22,63 @@ wheels/
 
 # Virtual Environment
 venv/
+.venv/
 ENV/
 env/
-.venv
+.env/
 
-# IDEs
+# PyCharm
 .idea/
+*.iml
+*.iws
+.idea_modules/
+
+# VS Code
 .vscode/
-*.swp
-*.swo
-*~
-.DS_Store
 
 # Environment variables
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
+recommendations.db
+
+# Redis
+dump.rdb
+
+# Docker
+.docker/
 
 # Logs
 *.log
 logs/
 
-# Testing
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Test
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
 
-# ML Models (if you download custom models)
+# Model cache
+.cache/
 models/
-*.bin
-*.pt
-*.pth
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# Jupyter
+.ipynb_checkpoints/
 
-# Data
-data/
-*.csv
-*.json
-*.parquet
-
-# Docker
-docker-compose.override.yml
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
