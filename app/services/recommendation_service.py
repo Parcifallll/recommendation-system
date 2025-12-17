@@ -1,4 +1,5 @@
 import json
+import numpy as np
 
 import redis.asyncio as aioredis
 from loguru import logger
@@ -14,7 +15,7 @@ from config import settings
 
 
 class RecommendationService:
-    """Service for handling recommendation logic"""
+    """Service for handling recommendation logic with Redis caching"""
 
     def __init__(self):
         self.recommender = recommender
@@ -24,15 +25,14 @@ class RecommendationService:
     async def init_redis(self):
         """Initialize Redis connection"""
         try:
-            # Build Redis URL with password
             redis_url = f"redis://:{settings.REDIS_PASSWORD}@{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
 
             self.redis_client = await aioredis.from_url(
                 redis_url,
                 encoding="utf-8",
-                decode_responses=True
+                decode_responses=False  # For binary data (numpy arrays)
             )
-            logger.info("Redis connection established")
+            logger.info("✅ Redis connection established")
         except Exception as e:
             logger.error(f"Failed to connect to Redis: {e}")
             self.redis_client = None
@@ -51,6 +51,18 @@ class RecommendationService:
         """
         Get personalized recommendations for a user
 
+        Flow:
+        1. Recommender checks Redis for cached preference
+        2. If not in Redis, checks PostgreSQL
+        3. If not in PostgreSQL, computes from reactions
+        4. Gets ALL posts (always fresh from PostgreSQL!)
+        5. Ranks with similarity × recency_boost
+        6. Returns top N
+
+        NOTE: We do NOT cache recommendation results!
+        Only preference embeddings are cached in Redis.
+        Posts are ALWAYS loaded fresh from PostgreSQL.
+
         Args:
             request: Recommendation request
             session: Database session
@@ -58,18 +70,13 @@ class RecommendationService:
         Returns:
             Recommendation response
         """
-        # Check cache first
-        cached = await self._get_cached_recommendations(request.user_id)
-        if cached:
-            logger.info(f"Returning cached recommendations for user {request.user_id}")
-            return cached
-
-        # Get recommendations from ML model
+        # Pass redis_client to recommender for preference caching
         recommended_posts = await self.recommender.get_recommendations(
             user_id=request.user_id,
             session=session,
             limit=request.limit,
-            exclude_author_posts=request.exclude_author_posts
+            exclude_author_posts=request.exclude_author_posts,
+            redis_client=self.redis_client  # Pass Redis client
         )
 
         # Convert to response format
@@ -93,9 +100,6 @@ class RecommendationService:
             total_count=len(post_responses)
         )
 
-        # Cache the results
-        await self._cache_recommendations(request.user_id, response)
-
         return response
 
     async def create_post(self, post_data: PostCreate, session: AsyncSession) -> PostResponse:
@@ -113,7 +117,12 @@ class RecommendationService:
         embedding = None
         if post_data.text:
             embedding_array = self.embedding_model.encode(post_data.text)
-            embedding = embedding_array.tolist()
+
+            # Convert 2D to 1D if needed (pgvector needs 1D)
+            if embedding_array.ndim == 2:
+                embedding = embedding_array[0]
+            else:
+                embedding = embedding_array
 
         # Create post in database
         post = Post(
@@ -148,7 +157,14 @@ class RecommendationService:
             session: AsyncSession
     ):
         """
-        Create a new reaction and invalidate user's recommendation cache
+        Create a new reaction and invalidate user's caches
+
+        Flow:
+        1. Save reaction to PostgreSQL
+        2. Delete preference from PostgreSQL (invalidate)
+        3. Delete preference from Redis (invalidate)
+
+        Next recommendation request will recompute preference!
 
         Args:
             reaction_data: Reaction creation data
@@ -167,64 +183,26 @@ class RecommendationService:
         session.add(reaction)
         await session.commit()
 
-        logger.info(f"Created reaction {reaction.id} by user {reaction.author_id}")
+        logger.info(f"Created reaction {reaction.id} by user {reaction_data.author_id}")
 
-        # Invalidate cache for this user
-        await self._invalidate_user_cache(reaction_data.author_id)
+        # Invalidate BOTH caches
+        # 1. Delete from PostgreSQL
+        await self.recommender.invalidate_user_preference(reaction_data.author_id, session)
 
-    async def _get_cached_recommendations(
-            self,
-            user_id: str
-    ) -> RecommendationResponse | None:
-        """Get cached recommendations from Redis"""
-        if not self.redis_client:
-            return None
+        # 2. Delete from Redis
+        await self._invalidate_preference_redis(reaction_data.author_id)
 
-        try:
-            cache_key = f"recommendations:{user_id}"
-            cached_data = await self.redis_client.get(cache_key)
-
-            if cached_data:
-                data = json.loads(cached_data)
-                return RecommendationResponse(**data)
-        except Exception as e:
-            logger.error(f"Error getting cached recommendations: {e}")
-
-        return None
-
-    async def _cache_recommendations(
-            self,
-            user_id: str,
-            response: RecommendationResponse
-    ):
-        """Cache recommendations in Redis"""
+    async def _invalidate_preference_redis(self, user_id: str):
+        """Invalidate cached preference in Redis"""
         if not self.redis_client:
             return
 
         try:
-            cache_key = f"recommendations:{user_id}"
-            # Convert to dict for JSON serialization
-            data = response.model_dump(mode='json')
-            await self.redis_client.setex(
-                cache_key,
-                settings.CACHE_TTL,
-                json.dumps(data)
-            )
-            logger.info(f"Cached recommendations for user {user_id}")
-        except Exception as e:
-            logger.error(f"Error caching recommendations: {e}")
-
-    async def _invalidate_user_cache(self, user_id: str):
-        """Invalidate cached recommendations for a user"""
-        if not self.redis_client:
-            return
-
-        try:
-            cache_key = f"recommendations:{user_id}"
+            cache_key = f"preference:{user_id}"
             await self.redis_client.delete(cache_key)
-            logger.info(f"Invalidated cache for user {user_id}")
+            logger.info(f"Invalidated preference in Redis for user {user_id}")
         except Exception as e:
-            logger.error(f"Error invalidating cache: {e}")
+            logger.error(f"Error invalidating preference in Redis: {e}")
 
 
 # Singleton instance

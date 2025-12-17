@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     REDIS_PORT: int
     REDIS_PASSWORD: str  # ⬅️ БЕЗ default!
     REDIS_DB: int
-    CACHE_TTL: int
+    PREFERENCE_CACHE_TTL: int = 86400
 
     # ML Model
     MODEL_NAME: str
@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     WEIGHT_CONTENT_SIMILARITY: float
     WEIGHT_LIKE_BOOST: float
     WEIGHT_DISLIKE_PENALTY: float
+
+    # Recency boost settings
+    RECENCY_BOOST_1H: float = 2.0  # < 1 hour
+    RECENCY_BOOST_6H: float = 1.8  # 1-6 hours
+    RECENCY_BOOST_24H: float = 1.5  # 6-24 hours
+    RECENCY_BOOST_3D: float = 1.3  # 1-3 days
+    RECENCY_BOOST_7D: float = 1.1  # 3-7 days
+    RECENCY_BOOST_DEFAULT: float = 1.0  # > 7 days
 
     class Config:
         env_file = ".env"
