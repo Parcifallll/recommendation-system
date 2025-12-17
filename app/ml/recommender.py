@@ -121,9 +121,16 @@ class ContentBasedRecommender:
         )
         user_pref = result.scalar_one_or_none()
 
-        if user_pref and user_pref.preference_embedding:
+        # Check if preference exists (avoid array boolean comparison)
+        if user_pref is not None and user_pref.preference_embedding is not None:
             # Convert pgvector to numpy array
             embedding = np.array(user_pref.preference_embedding)
+
+            # Validate that embedding is not empty
+            if embedding.size == 0:
+                logger.warning(f"Empty embedding for user {user_id}")
+                return None
+
             logger.info(f"✅ Loaded preference from PostgreSQL for user {user_id}")
 
             # Save to Redis for next time
