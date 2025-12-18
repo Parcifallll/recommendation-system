@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     REDIS_DB: int
     PREFERENCE_CACHE_TTL: int = 86400
 
+    # Kafka
+    KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
+    KAFKA_GROUP_ID: str = "python-ml-service"
+    KAFKA_AUTO_OFFSET_RESET: str = "earliest"  # or latest
+
     # ML Model
     MODEL_NAME: str
     EMBEDDING_DIMENSION: int
