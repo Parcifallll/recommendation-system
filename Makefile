@@ -25,7 +25,7 @@ run:  ## Run the application
 	python -m app.main
 
 dev:  ## Run in development mode with reload
-	uvicorn app.main:app --reload --port 8001
+	uvicorn app.main:app --reload --port 8000
 
 test:  ## Run API tests
 	python test_api.py

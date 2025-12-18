@@ -1,6 +1,3 @@
-import json
-import numpy as np
-
 import redis.asyncio as aioredis
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,13 +29,13 @@ class RecommendationService:
                 encoding="utf-8",
                 decode_responses=False  # For binary data (numpy arrays)
             )
-            logger.info("✅ Redis connection established")
+            logger.info("Redis connection established")
         except Exception as e:
             logger.error(f"Failed to connect to Redis: {e}")
             self.redis_client = None
 
     async def close_redis(self):
-        """Close Redis connection"""
+
         if self.redis_client:
             await self.redis_client.close()
             logger.info("Redis connection closed")
@@ -48,29 +45,7 @@ class RecommendationService:
             request: RecommendationRequest,
             session: AsyncSession
     ) -> RecommendationResponse:
-        """
-        Get personalized recommendations for a user
 
-        Flow:
-        1. Recommender checks Redis for cached preference
-        2. If not in Redis, checks PostgreSQL
-        3. If not in PostgreSQL, computes from reactions
-        4. Gets ALL posts (always fresh from PostgreSQL!)
-        5. Ranks with similarity × recency_boost
-        6. Returns top N
-
-        NOTE: We do NOT cache recommendation results!
-        Only preference embeddings are cached in Redis.
-        Posts are ALWAYS loaded fresh from PostgreSQL.
-
-        Args:
-            request: Recommendation request
-            session: Database session
-
-        Returns:
-            Recommendation response
-        """
-        # Pass redis_client to recommender for preference caching
         recommended_posts = await self.recommender.get_recommendations(
             user_id=request.user_id,
             session=session,
@@ -103,17 +78,7 @@ class RecommendationService:
         return response
 
     async def create_post(self, post_data: PostCreate, session: AsyncSession) -> PostResponse:
-        """
-        Create a new post and generate its embedding
 
-        Args:
-            post_data: Post creation data
-            session: Database session
-
-        Returns:
-            Created post
-        """
-        # Generate embedding for post text
         embedding = None
         if post_data.text:
             embedding_array = self.embedding_model.encode(post_data.text)
@@ -124,7 +89,7 @@ class RecommendationService:
             else:
                 embedding = embedding_array
 
-        # Create post in database
+
         post = Post(
             id=post_data.id,
             author_id=post_data.author_id,
