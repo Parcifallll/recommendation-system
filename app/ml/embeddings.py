@@ -6,8 +6,7 @@ from config import settings
 
 
 class EmbeddingModel:
-    """Wrapper for sentence transformer model"""
-    
+
     _instance: Optional['EmbeddingModel'] = None
     
     def __new__(cls):

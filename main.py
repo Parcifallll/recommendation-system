@@ -10,13 +10,6 @@ from config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Manage application lifecycle:
-    - Initialize Redis connection
-    - Start Kafka consumer on startup
-    - Stop Kafka consumer and close Redis on shutdown
-    """
-    # Startup
     logger.info("Starting application...")
 
     try:
@@ -34,7 +27,6 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
     logger.info("Shutting down application...")
 
     await kafka_consumer.stop()
@@ -53,13 +45,12 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Include API routes
+# Include api routes
 app.include_router(recommendations.router, prefix="/api/v1")
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
     return {
         "status": "healthy",
         "service": settings.APP_NAME,

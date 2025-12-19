@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  recommendation-service-app:
+  app:
     build: .
     container_name: rec-sys-app
     env_file: .env
