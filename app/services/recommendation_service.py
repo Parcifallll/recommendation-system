@@ -127,8 +127,11 @@ class RecommendationService:
 
         logger.info(f"Created reaction {reaction.id} by user {reaction_data.author_id}")
 
-        await self.recommender.invalidate_user_preference(reaction_data.author_id, session)
-        await self.invalidate_preference_redis(reaction_data.author_id)
+        await self.recommender.invalidate_user_preference(
+            reaction_data.author_id,
+            session,
+            self.redis_client
+        )
 
     async def invalidate_preference_redis(self, user_id: str):
         if not self.redis_client:

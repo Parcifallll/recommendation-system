@@ -22,16 +22,7 @@ class EmbeddingModel:
             logger.info(f"Model loaded successfully. Dimension: {self.dimension}")
     
     def encode(self, texts: str | list[str], batch_size: int = 32) -> np.ndarray:
-        """
-        Generate embeddings for text(s)
-        
-        Args:
-            texts: Single text or list of texts
-            batch_size: Batch size for encoding
-            
-        Returns:
-            Embeddings as numpy array
-        """
+
         if isinstance(texts, str):
             texts = [texts]
         
@@ -52,16 +43,7 @@ class EmbeddingModel:
         return embeddings
     
     def compute_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
-        """
-        Compute cosine similarity between two embeddings
-        
-        Args:
-            embedding1: First embedding
-            embedding2: Second embedding
-            
-        Returns:
-            Cosine similarity score
-        """
+
         # Normalize embeddings
         norm1 = np.linalg.norm(embedding1)
         norm2 = np.linalg.norm(embedding2)
@@ -74,16 +56,7 @@ class EmbeddingModel:
         return float(similarity)
     
     def compute_similarities(self, query_embedding: np.ndarray, embeddings: np.ndarray) -> np.ndarray:
-        """
-        Compute cosine similarities between query and multiple embeddings
-        
-        Args:
-            query_embedding: Query embedding (1D array)
-            embeddings: Matrix of embeddings (2D array)
-            
-        Returns:
-            Array of similarity scores
-        """
+
         # Normalize query
         query_norm = query_embedding / (np.linalg.norm(query_embedding) + 1e-10)
         

@@ -114,11 +114,18 @@ class ContentBasedRecommender:
     async def invalidate_user_preference(
             self,
             user_id: str,
-            session: AsyncSession
+            session: AsyncSession,
+            redis_client: Optional[aioredis.Redis] = None
     ):
         preference_embedding = await self._compute_preference_embedding(user_id, session)
         await self._save_user_preference(user_id, preference_embedding, session)
         logger.info(f"Updated preference for user {user_id} (embedding: {preference_embedding is not None})")
+
+        if redis_client and preference_embedding is not None:
+            await self._save_preference_to_redis(redis_client, user_id, preference_embedding)
+            logger.info(f"Updated preference in Redis for user {user_id}")
+        else:
+            logger.info(f"Updated preference for user {user_id} (embedding: {preference_embedding is not None})")
 
     async def _compute_preference_embedding(
             self,

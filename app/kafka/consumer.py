@@ -181,8 +181,11 @@ class KafkaConsumerService:
             session.add(reaction)
             await session.commit()
 
-            await recommender.invalidate_user_preference(author_id, session)
-            await recommendation_service.invalidate_preference_redis(author_id)
+            await recommender.invalidate_user_preference(
+                author_id,
+                session,
+                recommendation_service.redis_client
+            )
 
             logger.info(f"Created reaction {reaction_id}, invalidated preferences for {author_id}")
 
@@ -204,8 +207,11 @@ class KafkaConsumerService:
             reaction.type = payload['type']
             await session.commit()
 
-            await recommender.invalidate_user_preference(author_id, session)
-            await recommendation_service.invalidate_preference_redis(author_id)
+            await recommender.invalidate_user_preference(
+                author_id,
+                session,
+                recommendation_service.redis_client
+            )
 
             logger.info(f"Updated reaction {reaction_id}, invalidated preferences for {author_id}")
 
@@ -224,9 +230,11 @@ class KafkaConsumerService:
                 await session.delete(reaction)
                 await session.commit()
 
-                await recommender.invalidate_user_preference(author_id, session)
-                await recommendation_service._invalidate_preference_redis(author_id)
-
+                await recommender.invalidate_user_preference(
+                    author_id,
+                    session,
+                    recommendation_service.redis_client
+                )
                 logger.info(f"Deleted reaction {reaction_id}, invalidated preferences for {author_id}")
             else:
                 logger.warning(f"Reaction {reaction_id} not found for deletion")
