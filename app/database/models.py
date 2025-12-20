@@ -10,7 +10,9 @@ class Post(Base):
     __tablename__ = "posts_ml"
 
     id = Column(BigInteger, primary_key=True)
+    author_id = Column(String(255), nullable=False, index=True)
     text = Column(Text, nullable=True)
+    photo_url = Column(String(500), nullable=True)
     embedding = Column(Vector(384), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
@@ -24,7 +26,7 @@ class Reaction(Base):
     id = Column(BigInteger, primary_key=True)
     target_id = Column(BigInteger, nullable=False, index=True)
     author_id = Column(String(255), nullable=False, index=True)
-    type = Column(String(20), nullable=False)  # LIKE/DISLIKE
+    type = Column(String(20), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self):
