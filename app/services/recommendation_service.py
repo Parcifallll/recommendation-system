@@ -12,7 +12,6 @@ from config import settings
 
 
 class RecommendationService:
-    """Service for handling recommendation logic with Redis caching"""
 
     def __init__(self):
         self.recommender = recommender
@@ -20,14 +19,13 @@ class RecommendationService:
         self.redis_client: aioredis.Redis | None = None
 
     async def init_redis(self):
-        """Initialize Redis connection"""
         try:
             redis_url = f"redis://:{settings.REDIS_PASSWORD}@{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
 
             self.redis_client = await aioredis.from_url(
                 redis_url,
                 encoding="utf-8",
-                decode_responses=False  # For binary data (numpy arrays)
+                decode_responses=False
             )
             logger.info("Redis connection established")
         except Exception as e:
@@ -35,7 +33,6 @@ class RecommendationService:
             self.redis_client = None
 
     async def close_redis(self):
-
         if self.redis_client:
             await self.redis_client.close()
             logger.info("Redis connection closed")
@@ -51,10 +48,9 @@ class RecommendationService:
             session=session,
             limit=request.limit,
             exclude_author_posts=request.exclude_author_posts,
-            redis_client=self.redis_client  # Pass Redis client
+            redis_client=self.redis_client
         )
 
-        # Convert to response format
         post_responses = [
             PostResponse(
                 id=p.id,
@@ -78,17 +74,14 @@ class RecommendationService:
         return response
 
     async def create_post(self, post_data: PostCreate, session: AsyncSession) -> PostResponse:
-
         embedding = None
         if post_data.text:
             embedding_array = self.embedding_model.encode(post_data.text)
 
-            # Convert 2D to 1D if needed (pgvector needs 1D)
             if embedding_array.ndim == 2:
                 embedding = embedding_array[0]
             else:
                 embedding = embedding_array
-
 
         post = Post(
             id=post_data.id,
@@ -111,9 +104,9 @@ class RecommendationService:
             text=post.text,
             photoUrl=post.photo_url,
             createdAt=post.created_at,
-            commentsCount=post.comments_count,
-            likesCount=post.likes_count,
-            dislikesCount=post.dislikes_count
+            commentsCount=0,
+            likesCount=0,
+            dislikesCount=0
         )
 
     async def create_reaction(
@@ -121,24 +114,8 @@ class RecommendationService:
             reaction_data: ReactionCreate,
             session: AsyncSession
     ):
-        """
-        Create a new reaction and invalidate user's caches
-
-        Flow:
-        1. Save reaction to PostgreSQL
-        2. Delete preference from PostgreSQL (invalidate)
-        3. Delete preference from Redis (invalidate)
-
-        Next recommendation request will recompute preference!
-
-        Args:
-            reaction_data: Reaction creation data
-            session: Database session
-        """
-        # Create reaction in database
         reaction = Reaction(
             id=reaction_data.id,
-            target_type=reaction_data.target_type.value,
             target_id=reaction_data.target_id,
             author_id=reaction_data.author_id,
             type=reaction_data.type.value,
@@ -150,15 +127,10 @@ class RecommendationService:
 
         logger.info(f"Created reaction {reaction.id} by user {reaction_data.author_id}")
 
-        # Invalidate BOTH caches
-        # 1. Delete from PostgreSQL
         await self.recommender.invalidate_user_preference(reaction_data.author_id, session)
-
-        # 2. Delete from Redis
         await self._invalidate_preference_redis(reaction_data.author_id)
 
     async def _invalidate_preference_redis(self, user_id: str):
-        """Invalidate cached preference in Redis"""
         if not self.redis_client:
             return
 
@@ -170,5 +142,4 @@ class RecommendationService:
             logger.error(f"Error invalidating preference in Redis: {e}")
 
 
-# Singleton instance
 recommendation_service = RecommendationService()

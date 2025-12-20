@@ -23,6 +23,7 @@ redis==5.0.1
 # util
 python-dotenv==1.0
 loguru==0.7.2
+httpx==0.26.0
 
 # Kafka
 aiokafka==0.12.0

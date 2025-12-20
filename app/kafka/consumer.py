@@ -7,9 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.postgres import async_session_factory
-from app.database.models import Post, Reaction, UserPreference
+from app.database.models import Post, Reaction
 from app.ml.embeddings import embedding_model
 from app.ml.recommender import recommender
+from app.services import recommendation_service
 from config import settings
 
 
@@ -17,7 +18,9 @@ def parse_timestamp(value) -> datetime:
     if isinstance(value, (int, float)):
         return datetime.fromtimestamp(value)
     elif isinstance(value, str):
-        return datetime.fromisoformat(value.replace('Z', '+00:00'))
+        if 'Z' in value:
+            value = value.replace('Z', '+00:00')
+        return datetime.fromisoformat(value)
     return value
 
 
@@ -71,10 +74,10 @@ class KafkaConsumerService:
                         await self._handle_reaction_deleted(value)
 
                 except Exception as e:
-                    logger.error(f"Error handling {topic} event: {e}", exc_info=True)
+                    logger.error(f"Error handling {topic} event: {e}")
 
         except Exception as e:
-            logger.error(f"Fatal error in Kafka consumer: {e}", exc_info=True)
+            logger.error(f"Fatal error in Kafka consumer: {e}")
             self.running = False
 
     async def _handle_post_created(self, event: dict):
@@ -99,7 +102,9 @@ class KafkaConsumerService:
 
             post = Post(
                 id=post_id,
+                author_id=payload.get('authorId'),
                 text=text,
+                photo_url=payload.get('photoUrl'),
                 embedding=embedding,
                 created_at=created_at
             )
@@ -177,6 +182,7 @@ class KafkaConsumerService:
             await session.commit()
 
             await recommender.invalidate_user_preference(author_id, session)
+            await recommendation_service._invalidate_preference_redis(author_id)
 
             logger.info(f"Created reaction {reaction_id}, invalidated preferences for {author_id}")
 
@@ -199,6 +205,7 @@ class KafkaConsumerService:
             await session.commit()
 
             await recommender.invalidate_user_preference(author_id, session)
+            await recommendation_service._invalidate_preference_redis(author_id)
 
             logger.info(f"Updated reaction {reaction_id}, invalidated preferences for {author_id}")
 
@@ -218,6 +225,7 @@ class KafkaConsumerService:
                 await session.commit()
 
                 await recommender.invalidate_user_preference(author_id, session)
+                await recommendation_service._invalidate_preference_redis(author_id)
 
                 logger.info(f"Deleted reaction {reaction_id}, invalidated preferences for {author_id}")
             else:

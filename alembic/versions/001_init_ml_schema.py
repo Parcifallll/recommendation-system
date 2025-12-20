@@ -15,11 +15,20 @@ def upgrade() -> None:
     op.create_table(
         'posts_ml',
         sa.Column('id', sa.BigInteger(), nullable=False),
+        sa.Column('author_id', sa.String(length=255), nullable=False),
         sa.Column('text', sa.Text(), nullable=True),
+        sa.Column('photo_url', sa.String(length=500), nullable=True),
         sa.Column('embedding', Vector(384), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('id'),
         schema='public'
+    )
+
+    op.create_index(
+        'idx_posts_ml_author_id',
+        'posts_ml',
+        ['author_id'],
+        unique=False
     )
 
     op.create_index(
@@ -68,6 +77,13 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('user_id'),
         schema='public'
+    )
+
+    op.create_index(
+        'idx_user_preferences_user_id',
+        'user_preferences',
+        ['user_id'],
+        unique=False
     )
 
     op.execute("""

@@ -52,10 +52,10 @@ class Settings(BaseSettings):
     # Recency boost settings
     RECENCY_BOOST_1H: float = 2.0  # < 1 hour
     RECENCY_BOOST_6H: float = 1.8  # 1-6 hours
-    RECENCY_BOOST_24H: float = 1.5  # 6-24 hours
+    RECENCY_BOOST_24H: float = 1.5  # 6- 24 hours
     RECENCY_BOOST_3D: float = 1.3  # 1-3 days
-    RECENCY_BOOST_7D: float = 1.1  # 3-7 days
-    RECENCY_BOOST_DEFAULT: float = 1.0  # > 7 days
+    RECENCY_BOOST_7D: float = 1.1  #3-7 days
+    RECENCY_BOOST_DEFAULT: float = 1.0  #> 7 days
 
     class Config:
         env_file = ".env"
