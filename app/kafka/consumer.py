@@ -182,7 +182,7 @@ class KafkaConsumerService:
             await session.commit()
 
             await recommender.invalidate_user_preference(author_id, session)
-            await recommendation_service._invalidate_preference_redis(author_id)
+            await recommendation_service.invalidate_preference_redis(author_id)
 
             logger.info(f"Created reaction {reaction_id}, invalidated preferences for {author_id}")
 
@@ -205,7 +205,7 @@ class KafkaConsumerService:
             await session.commit()
 
             await recommender.invalidate_user_preference(author_id, session)
-            await recommendation_service._invalidate_preference_redis(author_id)
+            await recommendation_service.invalidate_preference_redis(author_id)
 
             logger.info(f"Updated reaction {reaction_id}, invalidated preferences for {author_id}")
 

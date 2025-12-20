@@ -117,10 +117,7 @@ class ContentBasedRecommender:
             session: AsyncSession
     ):
         preference_embedding = await self._compute_preference_embedding(user_id, session)
-
-        # 2. Всегда сохраняем (даже если None)
         await self._save_user_preference(user_id, preference_embedding, session)
-
         logger.info(f"Updated preference for user {user_id} (embedding: {preference_embedding is not None})")
 
     async def _compute_preference_embedding(

@@ -44,6 +44,9 @@ app-stop: ## stop app
 
 app-restart: app-stop run ## restart app
 
+
+redis-connect:
+	@docker exec -it rec-sys-redis redis-cli -a dev_redis
 db-connect: ## connect to PostgreSQL
 	@$(DOCKER_COMPOSE) exec postgres psql --username $$(grep POSTGRES_USER .env | cut --delimiter='=' --fields=2) --dbname $$(grep POSTGRES_DB .env | cut --delimiter='=' --fields=2)
 
