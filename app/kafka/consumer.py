@@ -31,12 +31,8 @@ class KafkaConsumerService:
 
     async def start(self):
         self.consumer = AIOKafkaConsumer(
-            'post.created',
-            'post.updated',
-            'post.deleted',
-            'reaction.created',
-            'reaction.updated',
-            'reaction.deleted',
+            'pastach.posts',
+            'pastach.reactions',
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
             group_id=settings.KAFKA_GROUP_ID,
             auto_offset_reset=settings.KAFKA_AUTO_OFFSET_RESET,
@@ -56,25 +52,29 @@ class KafkaConsumerService:
                 topic = message.topic
                 key = message.key.decode('utf-8') if message.key else None
                 value = message.value
+                event_type = value.get('eventType', '')
 
-                logger.info(f"Received event from {topic}: {key}")
+                logger.info(f"Received {event_type} from {topic}, key: {key}")
 
                 try:
-                    if topic == 'post.created':
+                    # Route by eventType
+                    if event_type == 'post.created':
                         await self._handle_post_created(value)
-                    elif topic == 'post.updated':
+                    elif event_type == 'post.updated':
                         await self._handle_post_updated(value)
-                    elif topic == 'post.deleted':
+                    elif event_type == 'post.deleted':
                         await self._handle_post_deleted(value)
-                    elif topic == 'reaction.created':
+                    elif event_type == 'reaction.created':
                         await self._handle_reaction_created(value)
-                    elif topic == 'reaction.updated':
+                    elif event_type == 'reaction.updated':
                         await self._handle_reaction_updated(value)
-                    elif topic == 'reaction.deleted':
+                    elif event_type == 'reaction.deleted':
                         await self._handle_reaction_deleted(value)
+                    else:
+                        logger.warning(f"Unknown event type: {event_type}")
 
                 except Exception as e:
-                    logger.error(f"Error handling {topic} event: {e}")
+                    logger.error(f"Error handling {event_type} event: {e}")
 
         except Exception as e:
             logger.error(f"Fatal error in Kafka consumer: {e}")
