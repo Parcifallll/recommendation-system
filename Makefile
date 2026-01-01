@@ -1,42 +1,75 @@
-.PHONY: install run test seed clean docker-up docker-down help
+PROJECT_NAME := recommendation-system
+DOCKER_COMPOSE := docker-compose
+PYTHON := python3
+INFRA_SERVICES := postgres redis
 
-help:  ## Show this help message
-	@echo "Available commands:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+RED := \033[0;31m
+GREEN := \033[0;32m
+BLUE := \033[0;34m
+NC := \033[0m
 
-install:  ## Install dependencies
-	pip install -r requirements.txt
+.PHONY: help dev infra infra-up infra-down run logs clean clean-all \
+        status ps db-connect alembic-upgrade alembic-downgrade
 
-docker-up:  ## Start PostgreSQL and Redis
-	docker-compose up -d
-	@echo "Waiting for services to be ready..."
-	@sleep 5
+help:
+	@echo "$(GREEN)Available commands:$(NC)"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	   awk 'BEGIN {FS = ":.*?## "}; {printf "$(BLUE)%-20s$(NC) %s\n", $$1, $$2}'
+	@echo ""
 
-docker-down:  ## Stop PostgreSQL and Redis
-	docker-compose down
+dev: run ## build and run app + infrastructure
 
-docker-clean:  ## Stop and remove volumes
-	docker-compose down -v
+infra: infra-up
+infra-up: ## run infrastructure
+	@$(DOCKER_COMPOSE) up --detach $(INFRA_SERVICES)
 
-seed:  ## Seed database with test data
-	python seed_data.py
+infra-down: ## stop infrastructure
+	@$(DOCKER_COMPOSE) stop $(INFRA_SERVICES)
 
-run:  ## Run the application
-	python -m app.main
+infra-logs: ## show infrastructure logs
+	@$(DOCKER_COMPOSE) logs --follow $(INFRA_SERVICES)
 
-dev:  ## Run in development mode with reload
-	uvicorn app.main:app --reload --port 8001
+run: infra-up ## run app + infrastructure
+	@$(DOCKER_COMPOSE) up --build app
 
-test:  ## Run API tests
-	python test_api.py
+run-detached: infra-up ## run app without logs
+	@$(DOCKER_COMPOSE) up --build --detach app
 
-clean:  ## Clean cache files
-	find . -type d -name "__pycache__" -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
-	find . -type f -name "*.pyo" -delete
-	find . -type d -name ".pytest_cache" -exec rm -rf {} +
+app-logs: ## show app logs
+	@$(DOCKER_COMPOSE) logs --follow app
 
-setup: docker-up seed  ## Full setup (Docker + seed data)
-	@echo "✅ Setup complete! Run 'make run' to start the service"
+app-stop: ## stop app
+	@$(DOCKER_COMPOSE) stop app
 
-all: install setup run  ## Install, setup and run
+app-restart: app-stop run ## restart app
+
+
+redis-connect:
+	@docker exec -it rec-sys-redis redis-cli -a dev_redis
+db-connect: ## connect to PostgreSQL
+	@$(DOCKER_COMPOSE) exec postgres psql --username $$(grep POSTGRES_USER .env | cut --delimiter='=' --fields=2) --dbname $$(grep POSTGRES_DB .env | cut --delimiter='=' --fields=2)
+
+alembic-upgrade: ## run migrations
+	@$(DOCKER_COMPOSE) exec app alembic upgrade head
+
+alembic-downgrade: ## rollback migrations
+	@$(DOCKER_COMPOSE) exec app alembic downgrade -1
+
+alembic-history: ## migration history
+	@$(DOCKER_COMPOSE) exec app alembic history
+
+status: ## services status
+	@docker ps
+
+ps: status
+
+logs: ## show logs
+	@$(DOCKER_COMPOSE) logs --follow
+
+clean: ## stop containers
+	@$(DOCKER_COMPOSE) down
+
+clean-all: ## full cleanup (volumes and images)
+	@$(DOCKER_COMPOSE) down --volumes --remove-orphans
+	@docker image prune --force

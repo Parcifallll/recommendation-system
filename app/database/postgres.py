@@ -1,18 +1,20 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.pool import NullPool
-from sqlalchemy import text  # ← ДОБАВИТЬ!
+from sqlalchemy import text
 from config import settings
 from app.database.models import Base
 from loguru import logger
 
-# Create async engine
+#async engine with connection pooling
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
-    poolclass=NullPool,
+    pool_size=20,  # connections to keep in pool
+    max_overflow=10,  # add connections if pool is exhausted
+    pool_timeout=30,  # sec to wait for connection from pool
+    pool_recycle=3600,  # recycle connections after 1 hour
+    pool_pre_ping=True,  # verify connections before using them
 )
 
-# Create async session factory
 async_session_factory = async_sessionmaker(
     engine,
     class_=AsyncSession,
@@ -21,43 +23,17 @@ async_session_factory = async_sessionmaker(
 
 
 async def init_db():
-    """Initialize database tables"""
-
-    # 1. CREATE EXTENSION в отдельной транзакции
-    async with engine.connect() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        await conn.commit()
-        logger.info("pgvector extension enabled")
-
-    # 2. CREATE TABLES в новой транзакции
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables created successfully")
-
-        # 3. CREATE INDEXES
-        await conn.execute(text("""
-                                CREATE INDEX IF NOT EXISTS posts_embedding_idx
-                                    ON posts USING ivfflat (embedding vector_cosine_ops)
-                                    WITH (lists = 100)
-                                """))
-        logger.info("Created IVFFlat index on posts.embedding")
-
-        await conn.execute(text("""
-                                CREATE INDEX IF NOT EXISTS user_preferences_embedding_idx
-                                    ON user_preferences USING ivfflat (preference_embedding vector_cosine_ops)
-                                    WITH (lists = 100)
-                                """))
-        logger.info("Created IVFFlat index on user_preferences.preference_embedding")
-
-        await conn.execute(text("""
-                                CREATE INDEX IF NOT EXISTS posts_created_at_idx
-                                    ON posts (created_at DESC)
-                                """))
-        logger.info("Created index on posts.created_at")
+    try:
+        async with engine.connect() as conn:
+            # test connection
+            await conn.execute(text("SELECT 1"))
+            logger.info("Database connection successful")
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
+        raise
 
 
 async def get_session() -> AsyncSession:
-    """Dependency for getting database session"""
     async with async_session_factory() as session:
         try:
             yield session
@@ -66,6 +42,5 @@ async def get_session() -> AsyncSession:
 
 
 async def close_db():
-    """Close database connections"""
     await engine.dispose()
     logger.info("Database connections closed")
