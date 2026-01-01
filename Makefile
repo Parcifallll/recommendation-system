@@ -18,6 +18,8 @@ help:
 	   awk 'BEGIN {FS = ":.*?## "}; {printf "$(BLUE)%-20s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 
+debug:
+	python -m main
 dev: run ## build and run app + infrastructure
 
 infra: infra-up
